@@ -12,7 +12,15 @@ def print_menu():
 
 
 def main():
-    print_menu()
+    while True:
+        print_menu()
+        choice = input("선택: ")
+
+        if choice == "5":
+            print("종료합니다.")
+            break
+        else:
+            print(f"{choice}번은 아직 준비 중입니다")
 
 
 if __name__ == "__main__":

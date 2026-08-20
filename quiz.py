@@ -76,11 +76,14 @@ class QuizGame:
     def load_state(self) -> None:
         """state_file에서 퀴즈 목록과 최고 점수를 불러온다.
 
-        파일이 없거나 JSON이 손상된 경우 기본 퀴즈 데이터로 대체한다.
+        파일이 없거나 JSON이 손상된 경우 기본 퀴즈 데이터로 대체하고,
+        그 기본 데이터를 곧바로 state_file에 저장해 처음 실행한 순간부터
+        state.json이 계속 유지되도록 한다.
         """
         if not os.path.exists(self.state_file):
             self.quizzes = default_quizzes()
             self.best_score = 0
+            self.save_state()
             return
 
         try:
@@ -94,6 +97,7 @@ class QuizGame:
             print("state.json 파일이 손상되어 기본 데이터로 시작합니다.")
             self.quizzes = default_quizzes()
             self.best_score = 0
+            self.save_state()
 
     def save_state(self) -> None:
         """현재 퀴즈 목록과 최고 점수를 state_file에 JSON(UTF-8)으로 저장한다."""

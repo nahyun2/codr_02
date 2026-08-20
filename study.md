@@ -273,6 +273,8 @@ def default_quizzes() -> List[Quiz]:
     return [Quiz(q, c, a) for q, c, a in raw]
 ```
 
+**보완 (`state.json`을 직접 수정한 뒤)**: 사용자가 `state.json`의 문제 5개를 새 넌센스 퀴즈로 직접 교체하면서 "이게 이제 기본 문제"라고 정함. 그런데 `default_quizzes()`는 `state.json`을 읽는 게 아니라 코드에 하드코딩된 별도의 데이터라서, 그대로 두면 `state.json`이 사라지거나 손상됐을 때(→ `load_state()`의 폴백 경로) 예전 문제로 되돌아가는 불일치가 생김. `default_quizzes()`의 `raw` 리스트를 `state.json`에 있는 새 문제 5개(+ 힌트)로 그대로 교체해서, "파일이 있든 없든 항상 같은 기본 문제"가 되도록 맞춤. `rm state.json` 후 재실행 / 파일을 깨뜨린 후 재실행 두 경우 모두 새 `state.json`이 사용자가 만든 버전과 완전히 동일하게 복구되는 것을 확인함.
+
 ---
 
 ## 이슈 9. 퀴즈 풀기 (`feature/play` 브랜치)

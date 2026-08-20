@@ -171,4 +171,88 @@ if __name__ == "__main__":
 
 ---
 
-<!-- 이후 이슈(7~)는 여기에 이어서 추가 -->
+## 이슈 7. `Quiz` 클래스 정의
+
+**개념**
+- 클래스(class): "문제 하나"라는 개념을 데이터(속성)와 동작(메서드)으로 묶어서 표현. 지금까지처럼 문제/선택지/정답을 각각 변수나 딕셔너리로 흩어서 다루는 대신, `Quiz` 객체 하나가 문제 하나를 온전히 표현하게 됨.
+- `__init__(self, ...)`: 생성자. `Quiz("질문", ["선택지1", ...], 정답번호)`처럼 객체를 만들 때 호출되어 속성을 초기화. 여기서 잘못된 값(빈 질문, 선택지 2개 미만, 범위 밖 정답)이 들어오면 `ValueError`를 즉시 발생시켜서 "잘못된 퀴즈 객체"가 애초에 만들어지지 않도록 방어.
+- 인스턴스 메서드(`display`, `check_answer`): 첫 인자로 항상 `self`(자기 자신 객체)를 받아서, 그 객체가 가진 속성(`self.question` 등)에 접근.
+  - `display()`: 문제/선택지를 화면에 출력하는 역할만 담당 (단일 책임).
+  - `check_answer(user_choice)`: 사용자가 고른 번호와 정답 번호를 비교해 `bool` 반환. 채점 로직을 `Quiz` 스스로 알고 있게 해서, 호출하는 쪽(나중에 `QuizGame.play()`)은 비교 로직을 몰라도 됨.
+- `answer`는 `choices` 리스트의 **1-based 인덱스**(1번부터 시작)로 정함 — 사람이 보는 "1번, 2번" 번호와 그대로 맞아떨어지게 하기 위함 (0-based로 하면 화면 표시할 때마다 +1/-1 변환이 필요해짐).
+
+**코드** (`quiz.py`)
+```python
+from typing import List
+
+
+class Quiz:
+    """퀴즈 문제 하나(질문/선택지/정답)를 표현하는 클래스."""
+
+    def __init__(self, question: str, choices: List[str], answer: int):
+        if not isinstance(question, str) or not question.strip():
+            raise ValueError("question은 비어있지 않은 문자열이어야 합니다.")
+        if not isinstance(choices, list) or len(choices) < 2:
+            raise ValueError("choices는 최소 2개 이상의 리스트여야 합니다.")
+        if not isinstance(answer, int) or not (1 <= answer <= len(choices)):
+            raise ValueError(f"answer는 1~{len(choices)} 사이의 정수여야 합니다.")
+
+        self.question = question
+        self.choices = choices
+        self.answer = answer  # choices의 1-based 인덱스
+
+    def display(self) -> None:
+        """문제와 선택지를 번호와 함께 출력한다."""
+        print(f"\nQ. {self.question}")
+        for i, choice in enumerate(self.choices, start=1):
+            print(f"  {i}. {choice}")
+
+    def check_answer(self, user_choice: int) -> bool:
+        """user_choice가 정답 번호와 같은지 반환한다."""
+        return user_choice == self.answer
+```
+
+**사용 예시**
+```python
+>>> q = Quiz("하늘은 왜 파랗게 보일까?", ["원래 파란색", "빛의 산란", "바다가 비쳐서"], 2)
+>>> q.display()
+
+Q. 하늘은 왜 파랗게 보일까?
+  1. 원래 파란색
+  2. 빛의 산란
+  3. 바다가 비쳐서
+>>> q.check_answer(2)
+True
+```
+
+---
+
+## 이슈 8. 기본 퀴즈 데이터 5개 이상
+
+**개념**
+- 아직 `state.json` 저장/불러오기(이슈 14)가 없기 때문에, 프로그램이 참조할 "시작용 퀴즈 데이터"가 코드 안에 있어야 함. `default_quizzes()` 함수가 그 역할.
+- 함수로 만든 이유: 모듈 최상단에 `DEFAULT_QUIZZES = [...]`처럼 리스트를 바로 두면, 그 리스트 객체를 여러 곳에서 공유하게 되어 한쪽에서 `.append()`하면 다른 곳에도 영향이 감(리스트는 mutable). 함수로 감싸서 호출할 때마다 새 리스트 + 새 `Quiz` 객체들을 만들어 반환하면 이런 부작용을 피할 수 있음.
+- `raw`에 `(질문, 선택지리스트, 정답번호)` 튜플들을 먼저 나열하고, 리스트 컴프리헨션 `[Quiz(q, c, a) for q, c, a in raw]`으로 한 번에 `Quiz` 객체 리스트로 변환 — 각 튜플을 `q, c, a`로 언패킹(unpacking)해서 `Quiz` 생성자에 그대로 넘겨줌.
+
+**코드** (`quiz.py`에 추가)
+```python
+def default_quizzes() -> List[Quiz]:
+    """기본 넌센스 퀴즈 5개를 생성해 반환한다."""
+    raw = [
+        ("하늘은 왜 파랗게 보일까?",
+         ["그냥 원래 파란색", "빛의 산란 때문", "바다가 비쳐서", "우주가 파래서"], 2),
+        ("물은 몇 도(℃)에서 끓을까? (1기압 기준)",
+         ["0도", "50도", "100도", "1000도"], 3),
+        ("대한민국의 수도는 어디일까?",
+         ["부산", "인천", "서울", "대전"], 3),
+        ("1년은 몇 개월일까?",
+         ["10개월", "11개월", "12개월", "13개월"], 3),
+        ("프로그램 코드의 오류를 부르는 말은?",
+         ["버그", "피처", "패치", "커밋"], 1),
+    ]
+    return [Quiz(q, c, a) for q, c, a in raw]
+```
+
+---
+
+<!-- 이후 이슈(9~)는 여기에 이어서 추가 -->

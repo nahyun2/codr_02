@@ -29,4 +29,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n프로그램을 안전하게 종료합니다. (Ctrl+C 감지)")
+    except EOFError:
+        print("\n입력이 종료되어 프로그램을 안전하게 종료합니다.")

@@ -593,4 +593,69 @@ class QuizGame:
 
 ---
 
-<!-- 이후 이슈(17~)는 여기에 이어서 추가 -->
+## 이슈 18. 보너스 기능 (`feature/bonus`)
+
+**개념**
+- 세 가지를 한 번에 추가: **퀴즈 삭제**, **힌트**, **랜덤 출제**. GUIDE에서 언급된 후보 중 사용자가 이 세 개를 모두 선택.
+
+**① 퀴즈 삭제**
+- 메뉴가 5개(풀기/추가/목록/점수/종료)에서 6개로 늘어남 — "삭제"가 5번으로 들어가고 "종료"가 6번으로 밀림. `main.py`의 `read_int` 범위도 `1~5` → `1~6`으로 변경.
+- `delete_quiz()`: 먼저 `list_quizzes()`로 번호와 함께 목록을 보여준 뒤, `read_int`로 삭제할 번호(1~len(quizzes))를 받아서 `self.quizzes.pop(index - 1)` (1-based 번호를 0-based 리스트 인덱스로 변환). 삭제 후 `save_state()`로 즉시 반영.
+
+**② 힌트**
+- `Quiz`에 `hint` 속성 추가 (기본값 `""`, 없어도 되는 선택 필드). `to_dict`/`from_dict`도 `hint`를 포함하도록 갱신 — `from_dict`는 `data.get("hint", "")`로 읽어서, 이 필드가 추가되기 전에 저장된 기존 `state.json`을 불러와도 `KeyError` 없이 동작(하위 호환).
+- `play()`에서 정답 입력을 받는 부분을 `while True:` 루프로 감싸서, `read_int`의 최소값을 `0`으로 낮추고 "0을 입력하면 힌트"로 안내. `0`이 들어오면 힌트를 출력하고 `continue`로 다시 물어보고, 그 외 값이면 `break`해서 정상 채점 로직으로 진행.
+- `add_quiz()`에 힌트 입력을 추가하되, 문제/선택지처럼 빈 값을 막지 않음 — 힌트는 선택 사항이라 그냥 엔터로 건너뛸 수 있게 함.
+
+**③ 랜덤 출제**
+- `play()` 시작 시 `self.quizzes.copy()`로 얕은 복사본을 만들고 `random.shuffle()`로 그 복사본만 섞음. `self.quizzes` 원본 순서는 그대로 유지 — `list_quizzes()`/`delete_quiz()`의 번호가 매번 바뀌면 사용자가 혼란스러우므로, "출제 순서"와 "목록/삭제용 순서"를 분리.
+
+**코드** (`quiz.py`, 핵심 부분)
+```python
+class Quiz:
+    def __init__(self, question, choices, answer, hint: str = ""):
+        ...
+        self.hint = hint
+
+    def to_dict(self):
+        return {"question": self.question, "choices": self.choices,
+                 "answer": self.answer, "hint": self.hint}
+
+    @classmethod
+    def from_dict(cls, data):
+        return cls(data["question"], data["choices"], data["answer"], data.get("hint", ""))
+
+
+class QuizGame:
+    def play(self) -> None:
+        if not self.quizzes:
+            print("등록된 퀴즈가 없습니다.")
+            return
+
+        shuffled = self.quizzes.copy()
+        random.shuffle(shuffled)
+
+        score = 0
+        for quiz in shuffled:
+            quiz.display()
+            while True:
+                choice = read_int("정답 번호를 입력하세요 (힌트를 보려면 0): ", 0, len(quiz.choices))
+                if choice == 0:
+                    print(f"힌트: {quiz.hint}" if quiz.hint else "이 문제에는 힌트가 없습니다.")
+                    continue
+                break
+            ...
+
+    def delete_quiz(self) -> None:
+        if not self.quizzes:
+            print("등록된 퀴즈가 없습니다.")
+            return
+
+        self.list_quizzes()
+        index = read_int("삭제할 퀴즈 번호를 입력하세요: ", 1, len(self.quizzes))
+        removed = self.quizzes.pop(index - 1)
+        self.save_state()
+        print(f"'{removed.question}' 퀴즈를 삭제했습니다.")
+```
+
+---

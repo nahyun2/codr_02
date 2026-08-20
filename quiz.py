@@ -1,5 +1,6 @@
 import json
 import os
+import random
 from typing import Any, Dict, List
 
 from utils import read_int
@@ -8,7 +9,7 @@ from utils import read_int
 class Quiz:
     """퀴즈 문제 하나(질문/선택지/정답)를 표현하는 클래스."""
 
-    def __init__(self, question: str, choices: List[str], answer: int):
+    def __init__(self, question: str, choices: List[str], answer: int, hint: str = ""):
         if not isinstance(question, str) or not question.strip():
             raise ValueError("question은 비어있지 않은 문자열이어야 합니다.")
         if not isinstance(choices, list) or len(choices) < 2:
@@ -19,6 +20,7 @@ class Quiz:
         self.question = question
         self.choices = choices
         self.answer = answer  # choices의 1-based 인덱스
+        self.hint = hint
 
     def display(self) -> None:
         """문제와 선택지를 번호와 함께 출력한다."""
@@ -32,29 +34,34 @@ class Quiz:
 
     def to_dict(self) -> Dict[str, Any]:
         """state.json에 저장할 수 있도록 dict 형태로 변환한다."""
-        return {"question": self.question, "choices": self.choices, "answer": self.answer}
+        return {"question": self.question, "choices": self.choices, "answer": self.answer, "hint": self.hint}
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Quiz":
         """state.json에서 읽어온 dict로부터 Quiz 객체를 만든다."""
-        return cls(data["question"], data["choices"], data["answer"])
+        return cls(data["question"], data["choices"], data["answer"], data.get("hint", ""))
 
 
 def default_quizzes() -> List[Quiz]:
     """기본 넌센스 퀴즈 5개를 생성해 반환한다."""
     raw = [
         ("하늘은 왜 파랗게 보일까?",
-         ["그냥 원래 파란색", "빛의 산란 때문", "바다가 비쳐서", "우주가 파래서"], 2),
+         ["그냥 원래 파란색", "빛의 산란 때문", "바다가 비쳐서", "우주가 파래서"], 2,
+         "빛의 파장과 관련이 있어요."),
         ("물은 몇 도(℃)에서 끓을까? (1기압 기준)",
-         ["0도", "50도", "100도", "1000도"], 3),
+         ["0도", "50도", "100도", "1000도"], 3,
+         "세 자리 숫자예요."),
         ("대한민국의 수도는 어디일까?",
-         ["부산", "인천", "서울", "대전"], 3),
+         ["부산", "인천", "서울", "대전"], 3,
+         "한강이 흐르는 도시예요."),
         ("1년은 몇 개월일까?",
-         ["10개월", "11개월", "12개월", "13개월"], 3),
+         ["10개월", "11개월", "12개월", "13개월"], 3,
+         "달력을 떠올려보세요."),
         ("프로그램 코드의 오류를 부르는 말은?",
-         ["버그", "피처", "패치", "커밋"], 1),
+         ["버그", "피처", "패치", "커밋"], 1,
+         "곤충 이름에서 유래했어요."),
     ]
-    return [Quiz(q, c, a) for q, c, a in raw]
+    return [Quiz(q, c, a, h) for q, c, a, h in raw]
 
 
 class QuizGame:
@@ -106,26 +113,36 @@ class QuizGame:
         print("2. 퀴즈 추가")
         print("3. 퀴즈 목록")
         print("4. 점수 확인")
-        print("5. 종료")
+        print("5. 퀴즈 삭제")
+        print("6. 종료")
         print("=" * 20)
 
     def play(self) -> None:
-        """등록된 모든 퀴즈를 순서대로 출제 및 채점하고, 최고 점수를 갱신한다."""
+        """등록된 퀴즈를 무작위 순서로 출제 및 채점하고, 최고 점수를 갱신한다."""
         if not self.quizzes:
             print("등록된 퀴즈가 없습니다.")
             return
 
+        shuffled = self.quizzes.copy()
+        random.shuffle(shuffled)
+
         score = 0
-        for quiz in self.quizzes:
+        for quiz in shuffled:
             quiz.display()
-            choice = read_int("정답 번호를 입력하세요: ", 1, len(quiz.choices))
+            while True:
+                choice = read_int("정답 번호를 입력하세요 (힌트를 보려면 0): ", 0, len(quiz.choices))
+                if choice == 0:
+                    print(f"힌트: {quiz.hint}" if quiz.hint else "이 문제에는 힌트가 없습니다.")
+                    continue
+                break
+
             if quiz.check_answer(choice):
                 print("정답입니다!")
                 score += 1
             else:
                 print(f"오답입니다. 정답은 {quiz.answer}번 이었습니다.")
 
-        print(f"\n최종 점수: {score} / {len(self.quizzes)}")
+        print(f"\n최종 점수: {score} / {len(shuffled)}")
 
         if score > self.best_score:
             self.best_score = score
@@ -148,8 +165,9 @@ class QuizGame:
             choices.append(choice)
 
         answer = read_int("정답 번호(1~4)를 입력하세요: ", 1, 4)
+        hint = input("힌트를 입력하세요 (없으면 그냥 엔터): ").strip()
 
-        self.quizzes.append(Quiz(question, choices, answer))
+        self.quizzes.append(Quiz(question, choices, answer, hint))
         self.save_state()
         print("퀴즈가 추가되었습니다!")
 
@@ -169,3 +187,15 @@ class QuizGame:
             print("아직 기록된 점수가 없습니다. 퀴즈를 풀어보세요!")
         else:
             print(f"최고 점수: {self.best_score} / {len(self.quizzes)}")
+
+    def delete_quiz(self) -> None:
+        """번호를 입력받아 해당 퀴즈를 목록에서 삭제한다."""
+        if not self.quizzes:
+            print("등록된 퀴즈가 없습니다.")
+            return
+
+        self.list_quizzes()
+        index = read_int("삭제할 퀴즈 번호를 입력하세요: ", 1, len(self.quizzes))
+        removed = self.quizzes.pop(index - 1)
+        self.save_state()
+        print(f"'{removed.question}' 퀴즈를 삭제했습니다.")

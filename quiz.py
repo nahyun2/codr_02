@@ -1,4 +1,6 @@
-from typing import List
+import json
+import os
+from typing import Any, Dict, List
 
 from utils import read_int
 
@@ -28,6 +30,15 @@ class Quiz:
         """user_choice가 정답 번호와 같은지 반환한다."""
         return user_choice == self.answer
 
+    def to_dict(self) -> Dict[str, Any]:
+        """state.json에 저장할 수 있도록 dict 형태로 변환한다."""
+        return {"question": self.question, "choices": self.choices, "answer": self.answer}
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Quiz":
+        """state.json에서 읽어온 dict로부터 Quiz 객체를 만든다."""
+        return cls(data["question"], data["choices"], data["answer"])
+
 
 def default_quizzes() -> List[Quiz]:
     """기본 넌센스 퀴즈 5개를 생성해 반환한다."""
@@ -49,9 +60,42 @@ def default_quizzes() -> List[Quiz]:
 class QuizGame:
     """퀴즈 목록/최고 점수 상태를 갖고 게임 전체 흐름을 관리하는 클래스."""
 
-    def __init__(self):
-        self.quizzes: List[Quiz] = default_quizzes()
+    def __init__(self, state_file: str = "state.json"):
+        self.state_file = state_file
+        self.quizzes: List[Quiz] = []
         self.best_score: int = 0
+        self.load_state()
+
+    def load_state(self) -> None:
+        """state_file에서 퀴즈 목록과 최고 점수를 불러온다.
+
+        파일이 없거나 JSON이 손상된 경우 기본 퀴즈 데이터로 대체한다.
+        """
+        if not os.path.exists(self.state_file):
+            self.quizzes = default_quizzes()
+            self.best_score = 0
+            return
+
+        try:
+            with open(self.state_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            raw_quizzes = data.get("quizzes", [])
+            self.quizzes = [Quiz.from_dict(q) for q in raw_quizzes] if raw_quizzes else default_quizzes()
+            self.best_score = data.get("best_score", 0)
+        except (json.JSONDecodeError, KeyError, ValueError, TypeError):
+            print("state.json 파일이 손상되어 기본 데이터로 시작합니다.")
+            self.quizzes = default_quizzes()
+            self.best_score = 0
+
+    def save_state(self) -> None:
+        """현재 퀴즈 목록과 최고 점수를 state_file에 JSON(UTF-8)으로 저장한다."""
+        data = {
+            "quizzes": [q.to_dict() for q in self.quizzes],
+            "best_score": self.best_score,
+        }
+        with open(self.state_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
 
     def show_menu(self) -> None:
         """메뉴 화면을 출력한다."""
@@ -86,6 +130,7 @@ class QuizGame:
         if score > self.best_score:
             self.best_score = score
             print("최고 점수를 갱신했습니다!")
+            self.save_state()
 
     def add_quiz(self) -> None:
         """문제/선택지4개/정답을 입력받아 퀴즈를 추가한다."""
@@ -105,6 +150,7 @@ class QuizGame:
         answer = read_int("정답 번호(1~4)를 입력하세요: ", 1, 4)
 
         self.quizzes.append(Quiz(question, choices, answer))
+        self.save_state()
         print("퀴즈가 추가되었습니다!")
 
     def list_quizzes(self) -> None:

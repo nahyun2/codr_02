@@ -255,4 +255,55 @@ def default_quizzes() -> List[Quiz]:
 
 ---
 
-<!-- 이후 이슈(9~)는 여기에 이어서 추가 -->
+## 이슈 9. 퀴즈 풀기 (`feature/play` 브랜치)
+
+**개념**
+- 아직 `QuizGame` 클래스가 없는 단계라, `play_quizzes(quizzes)`라는 일반 함수로 구현. 나중에 이슈 13에서 `QuizGame` 클래스로 리팩터링될 때 이 로직이 메서드 하나로 옮겨갈 예정.
+- `main()`이 시작할 때 `quizzes = default_quizzes()`로 퀴즈 목록을 한 번 만들어서, 메뉴 루프 내내 같은 리스트를 재사용 (매번 다시 만들면 이전 라운드의 상태를 유지할 수 없음).
+- `for quiz in quizzes:`로 각 문제를 순서대로 출제 → `quiz.display()`로 화면에 보여주고 → `read_int(...)`로 답을 입력받되, `max_val`을 `len(quiz.choices)`로 줘서 그 문제의 선택지 개수에 맞게 범위를 동적으로 검증.
+- `quiz.check_answer(choice)`가 `True`/`False`를 돌려주므로, 그 값으로 `score`를 누적하고 정답/오답 메시지를 분기.
+- 함수 인자로 `quizzes`를 받는 구조라, 나중에 사용자가 추가한 퀴즈까지 포함된 리스트를 넘겨도 그대로 재사용 가능 (이슈 10과 자연스럽게 연결됨).
+
+**코드** (`main.py`)
+```python
+from quiz import default_quizzes
+
+
+def play_quizzes(quizzes):
+    """퀴즈 목록을 순서대로 출제하고 채점한 뒤 최종 점수를 출력한다."""
+    if not quizzes:
+        print("등록된 퀴즈가 없습니다.")
+        return
+
+    score = 0
+    for quiz in quizzes:
+        quiz.display()
+        choice = read_int("정답 번호를 입력하세요: ", 1, len(quiz.choices))
+        if quiz.check_answer(choice):
+            print("정답입니다!")
+            score += 1
+        else:
+            print(f"오답입니다. 정답은 {quiz.answer}번 이었습니다.")
+
+    print(f"\n최종 점수: {score} / {len(quizzes)}")
+
+
+def main():
+    quizzes = default_quizzes()
+
+    while True:
+        print_menu()
+        choice = read_int("선택: ", 1, 5)
+
+        if choice == 1:
+            play_quizzes(quizzes)
+        elif choice == 5:
+            print("종료합니다.")
+            break
+        else:
+            print(f"{choice}번은 아직 준비 중입니다")
+```
+
+---
+
+<!-- 이후 이슈(10~)는 여기에 이어서 추가 -->

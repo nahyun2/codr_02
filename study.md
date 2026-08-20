@@ -158,7 +158,7 @@ if choice == 5:   # 이제 int라서 5로 비교 (이슈4의 "5"와 다름)
 - 처리 안 하면 지저분한 트레이스백과 함께 프로그램이 죽음. `main()` 호출부(`if __name__ == "__main__":`)에서 한 번에 감싸서, 어디서 발생하든(지금은 `read_int` 안에서 `raise`되어 여기까지 전달됨) 깔끔한 안내 메시지 후 정상 종료로 바꿈.
 - 예외 처리 위치를 `main()` 내부가 아니라 최상단 진입점에 둔 이유: 로직 코드(`main()`)와 "프로그램 레벨 안전장치"를 분리하기 위함.
 
-**코드** (`main.py`)
+**코드** (`main.py`, 최초 작성 당시)
 ```python
 if __name__ == "__main__":
     try:
@@ -167,6 +167,26 @@ if __name__ == "__main__":
         print("\n프로그램을 안전하게 종료합니다. (Ctrl+C 감지)")
     except EOFError:
         print("\n입력이 종료되어 프로그램을 안전하게 종료합니다.")
+```
+
+**보완 (이슈 16 정리 중 발견)**: GUIDE 체크리스트에는 "안내 후 **저장**·안전 종료"가 명시돼 있는데, `try/except`가 `main()` 바깥(`__main__`)에 있으면 `QuizGame` 객체(`game`)에 접근할 수 없어 종료 시 저장을 못 함. 그래서 `try/except`를 `main()` 안쪽, `game = QuizGame()` 다음으로 옮기고 각 `except`에서 `game.save_state()`를 먼저 호출하도록 수정함.
+```python
+def main():
+    game = QuizGame()
+
+    try:
+        while True:
+            ...
+    except KeyboardInterrupt:
+        game.save_state()
+        print("\n프로그램을 안전하게 종료합니다. (Ctrl+C 감지)")
+    except EOFError:
+        game.save_state()
+        print("\n입력이 종료되어 프로그램을 안전하게 종료합니다.")
+
+
+if __name__ == "__main__":
+    main()
 ```
 
 ---
@@ -306,4 +326,271 @@ def main():
 
 ---
 
-<!-- 이후 이슈(10~)는 여기에 이어서 추가 -->
+## 이슈 10. 퀴즈 추가 기능 (`feature/quiz-management`)
+
+**개념**
+- `add_quiz(quizzes)`: 사용자에게 문제 1개 + 선택지 4개 + 정답 번호를 순서대로 입력받아 `Quiz` 객체를 만들고, 인자로 받은 `quizzes` 리스트에 `append`.
+- 각 입력마다 `while not 값:` 패턴으로 빈 문자열을 막음 — `read_int`는 숫자 검증용이라 문자열(문제/선택지) 입력에는 못 쓰므로 직접 검증 루프를 작성.
+- 리스트는 mutable(참조로 전달)이라, 함수 안에서 `quizzes.append(...)`하면 `main()`이 갖고 있는 원본 리스트에도 그대로 반영됨 — 별도로 반환값을 돌려줄 필요 없음.
+
+**코드** (`main.py`)
+```python
+def add_quiz(quizzes):
+    """문제/선택지4개/정답을 입력받아 퀴즈를 추가한다."""
+    question = input("문제를 입력하세요: ").strip()
+    while not question:
+        print("문제는 비어있을 수 없습니다.")
+        question = input("문제를 입력하세요: ").strip()
+
+    choices = []
+    for i in range(1, 5):
+        choice = input(f"선택지 {i}를 입력하세요: ").strip()
+        while not choice:
+            print("선택지는 비어있을 수 없습니다.")
+            choice = input(f"선택지 {i}를 입력하세요: ").strip()
+        choices.append(choice)
+
+    answer = read_int("정답 번호(1~4)를 입력하세요: ", 1, 4)
+
+    quizzes.append(Quiz(question, choices, answer))
+    print("퀴즈가 추가되었습니다!")
+```
+
+---
+
+## 이슈 11. 퀴즈 목록 기능
+
+**개념**
+- `list_quizzes(quizzes)`: 등록된 퀴즈들의 질문과 정답 번호만 간단히 나열. 채점용이 아니라 "확인용"이라 선택지까지는 안 보여줌.
+- `enumerate(quizzes, start=1)`로 1번부터 번호를 매겨서 사람이 읽기 좋은 목록 형태로 출력.
+
+**코드** (`main.py`)
+```python
+def list_quizzes(quizzes):
+    """등록된 모든 퀴즈의 문제와 정답 번호를 목록으로 출력한다."""
+    if not quizzes:
+        print("등록된 퀴즈가 없습니다.")
+        return
+
+    print(f"\n총 {len(quizzes)}개의 퀴즈가 등록되어 있습니다.")
+    for i, quiz in enumerate(quizzes, start=1):
+        print(f"{i}. {quiz.question} (정답: {quiz.answer}번)")
+```
+
+---
+
+## 이슈 12. 점수 확인 기능
+
+**개념**
+- "최고 점수"는 한 번의 `play_quizzes` 호출로 끝나는 값이 아니라 여러 번 플레이해도 유지돼야 하는 상태 → `main()`에 `best_score = 0`을 두고 메뉴 루프가 도는 동안 계속 들고 있음 (아직 클래스가 없어서 지역 변수로 관리, 이슈 13에서 `QuizGame` 속성으로 옮겨감).
+- 이를 위해 `play_quizzes`가 이제 점수를 `print`만 하지 않고 `return score`로 값을 돌려주도록 바뀜 → `main()`이 그 값을 받아 `best_score`와 비교/갱신.
+- `show_score(best_score, total)`: 아직 한 번도 플레이 안 했으면(`best_score <= 0`) 안내 메시지, 아니면 "최고점수 / 전체문제수" 형태로 출력.
+
+**코드** (`main.py`)
+```python
+def show_score(best_score, total):
+    """지금까지 기록된 최고 점수를 출력한다."""
+    if best_score <= 0:
+        print("아직 기록된 점수가 없습니다. 퀴즈를 풀어보세요!")
+    else:
+        print(f"최고 점수: {best_score} / {total}")
+
+
+def main():
+    quizzes = default_quizzes()
+    best_score = 0
+
+    while True:
+        print_menu()
+        choice = read_int("선택: ", 1, 5)
+
+        if choice == 1:
+            score = play_quizzes(quizzes)
+            if score > best_score:
+                best_score = score
+                print("최고 점수를 갱신했습니다!")
+        elif choice == 2:
+            add_quiz(quizzes)
+        elif choice == 3:
+            list_quizzes(quizzes)
+        elif choice == 4:
+            show_score(best_score, len(quizzes))
+        elif choice == 5:
+            print("종료합니다.")
+            break
+```
+
+---
+
+## 이슈 13. `QuizGame` 클래스로 책임 분리 (리팩터링)
+
+**개념**
+- 리팩터링(refactoring): 동작은 그대로 유지하면서 코드 구조만 개선하는 작업. 여태까지 `main.py`에 흩어져 있던 `quizzes`(리스트), `best_score`(변수), `play_quizzes`/`add_quiz`/`list_quizzes`/`show_score`(함수)를 `QuizGame`이라는 클래스 하나로 묶음.
+- 왜 묶나: "퀴즈 게임의 상태(퀴즈 목록, 최고 점수)"와 "그 상태를 다루는 동작(풀기/추가/목록/점수)"이 항상 같이 다녀야 하는데, 지금까지는 함수마다 `quizzes`, `best_score`를 일일이 인자로 넘기고 반환값을 다시 받아야 했음. 클래스로 묶으면 `self.quizzes`, `self.best_score`로 공유되어 인자 전달이 사라짐.
+- `__init__(self)`: 객체 생성 시점에 `self.quizzes = default_quizzes()`, `self.best_score = 0`으로 초기 상태를 세팅. 함수형 코드의 `quizzes = default_quizzes()` 한 줄이 생성자 안으로 들어간 것.
+- 각 메서드는 예전 함수와 로직이 거의 동일하고, `quizzes`/`best_score` 매개변수 대신 `self.quizzes`/`self.best_score`를 사용하도록만 바뀜. `play()`는 이제 점수를 `return`하지 않고 `self.best_score`를 직접 갱신(호출한 쪽에서 비교할 필요가 없어짐).
+- `main.py`는 이제 "메뉴 선택값 읽기 → 어떤 메서드를 부를지 분기"만 담당하는 아주 얇은 진입점이 됨. `game = QuizGame()` 객체 하나만 만들면 이후 모든 상태/로직은 그 객체가 책임짐.
+
+**코드** (`quiz.py`)
+```python
+class QuizGame:
+    """퀴즈 목록/최고 점수 상태를 갖고 게임 전체 흐름을 관리하는 클래스."""
+
+    def __init__(self):
+        self.quizzes: List[Quiz] = default_quizzes()
+        self.best_score: int = 0
+
+    def show_menu(self) -> None:
+        ...
+
+    def play(self) -> None:
+        if not self.quizzes:
+            print("등록된 퀴즈가 없습니다.")
+            return
+
+        score = 0
+        for quiz in self.quizzes:
+            quiz.display()
+            choice = read_int("정답 번호를 입력하세요: ", 1, len(quiz.choices))
+            if quiz.check_answer(choice):
+                print("정답입니다!")
+                score += 1
+            else:
+                print(f"오답입니다. 정답은 {quiz.answer}번 이었습니다.")
+
+        print(f"\n최종 점수: {score} / {len(self.quizzes)}")
+        if score > self.best_score:
+            self.best_score = score
+            print("최고 점수를 갱신했습니다!")
+
+    def add_quiz(self) -> None: ...
+    def list_quizzes(self) -> None: ...
+    def show_score(self) -> None: ...
+```
+
+**코드** (`main.py`, 리팩터링 후)
+```python
+from quiz import QuizGame
+from utils import read_int
+
+
+def main():
+    game = QuizGame()
+
+    while True:
+        game.show_menu()
+        choice = read_int("선택: ", 1, 5)
+
+        if choice == 1:
+            game.play()
+        elif choice == 2:
+            game.add_quiz()
+        elif choice == 3:
+            game.list_quizzes()
+        elif choice == 4:
+            game.show_score()
+        elif choice == 5:
+            print("종료합니다.")
+            break
+```
+
+---
+
+## 이슈 14. `state.json` 저장/불러오기 구현 (`feature/persistence`)
+
+**개념**
+- 지금까지는 프로그램을 끄면 추가한 퀴즈나 최고 점수가 모두 사라졌음. `state.json` 파일에 직렬화(serialize)해서 남겨두고, 다음 실행 때 역직렬화(deserialize)해서 복원하는 게 목표.
+- `Quiz.to_dict()` / `Quiz.from_dict()`: `Quiz` 객체 ↔ `dict` 상호 변환. JSON은 파이썬 객체를 직접 저장할 수 없고 `dict`/`list`/기본 타입만 저장 가능하므로, 저장 직전엔 `dict`로, 불러온 직후엔 다시 `Quiz`로 변환하는 다리 역할.
+  - `from_dict`는 `@classmethod`로 선언 — 인스턴스가 없는 상태에서 `Quiz.from_dict(data)`처럼 클래스 자체를 통해 새 객체를 만들어야 하기 때문(일반 메서드는 이미 만들어진 `self`가 있어야 호출 가능).
+- `QuizGame.__init__(self, state_file="state.json")`: 이제 생성자가 곧바로 `default_quizzes()`를 쓰지 않고 `load_state()`를 호출. `state_file` 경로를 인자로 받게 해서, 나중에 테스트할 때 임시 파일 경로를 넣는 식으로도 재사용 가능.
+- `load_state()`의 방어적 처리 (요구사항 "공통 예외 처리"의 `state.json` 부분):
+  - 파일이 아예 없으면(`os.path.exists`가 `False`) → 기본 데이터로 시작.
+  - 파일은 있지만 JSON 파싱 실패(`json.JSONDecodeError`)나 예상과 다른 구조(`KeyError`/`ValueError`/`TypeError` — 예: `Quiz.from_dict`에서 `Quiz.__init__`의 검증 실패)면 → `except`로 잡아서 기본 데이터로 대체. 어떤 경우에도 프로그램이 죽지 않음.
+- `save_state()`: `quizzes`/`best_score`를 `dict`로 만들어 `json.dump`. `ensure_ascii=False`를 꼭 줘야 한글이 `\uXXXX` 이스케이프가 아니라 사람이 읽을 수 있는 문자 그대로 저장됨.
+
+**코드** (`quiz.py`)
+```python
+class Quiz:
+    ...
+    def to_dict(self) -> Dict[str, Any]:
+        return {"question": self.question, "choices": self.choices, "answer": self.answer}
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Quiz":
+        return cls(data["question"], data["choices"], data["answer"])
+
+
+class QuizGame:
+    def __init__(self, state_file: str = "state.json"):
+        self.state_file = state_file
+        self.quizzes: List[Quiz] = []
+        self.best_score: int = 0
+        self.load_state()
+
+    def load_state(self) -> None:
+        if not os.path.exists(self.state_file):
+            self.quizzes = default_quizzes()
+            self.best_score = 0
+            return
+
+        try:
+            with open(self.state_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            raw_quizzes = data.get("quizzes", [])
+            self.quizzes = [Quiz.from_dict(q) for q in raw_quizzes] if raw_quizzes else default_quizzes()
+            self.best_score = data.get("best_score", 0)
+        except (json.JSONDecodeError, KeyError, ValueError, TypeError):
+            print("state.json 파일이 손상되어 기본 데이터로 시작합니다.")
+            self.quizzes = default_quizzes()
+            self.best_score = 0
+
+    def save_state(self) -> None:
+        data = {
+            "quizzes": [q.to_dict() for q in self.quizzes],
+            "best_score": self.best_score,
+        }
+        with open(self.state_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+```
+
+---
+
+## 이슈 15. 퀴즈 추가/점수 갱신 시 자동 저장 연결
+
+**개념**
+- `save_state()`는 이슈 14에서 "저장하는 방법"만 만든 것이고, 언제 호출할지는 정하지 않았음. 이슈 15는 그 호출 시점 두 곳을 연결하는 작업.
+- ① `add_quiz()` 끝에서 새 퀴즈를 `append`한 직후 `save_state()` 호출 → 추가 직후 프로그램이 예기치 않게 꺼져도(정전, 강제종료 등) 방금 추가한 퀴즈가 유실되지 않음.
+- ② `play()`에서 `self.best_score`를 갱신하는 조건문(`if score > self.best_score:`) 안에서 `save_state()` 호출 → 매번 풀 때마다 저장하는 게 아니라 **기록을 갱신했을 때만** 저장해서 불필요한 파일 쓰기를 줄임.
+- 종료 시점(`main.py`의 선택지 5)에는 이미 위 두 지점에서 저장이 끝난 상태라 별도 저장 호출이 필수는 아니지만, "혹시 모를 유실"을 더 확실히 막고 싶다면 종료 직전에 한 번 더 저장하는 방어적 습관도 고려할 수 있음(현재 구현에는 미포함).
+
+**코드** (`quiz.py`, 두 군데만 한 줄씩 추가)
+```python
+    def play(self) -> None:
+        ...
+        if score > self.best_score:
+            self.best_score = score
+            print("최고 점수를 갱신했습니다!")
+            self.save_state()          # ← 추가
+
+    def add_quiz(self) -> None:
+        ...
+        self.quizzes.append(Quiz(question, choices, answer))
+        self.save_state()              # ← 추가
+        print("퀴즈가 추가되었습니다!")
+```
+
+---
+
+## 이슈 16. README 최종 작성 (`develop`)
+
+**개념**
+- 제출용 문서라 브랜치를 따로 안 파고 `develop`에서 바로 작업 (문서/설정 변경은 GUIDE 3번 기준에 따라 feature 브랜치 없이 진행).
+- README 필수 6항목(개요/주제선정이유/실행방법/기능목록/파일구조/데이터파일설명)의 `TODO` 주석을 실제 구현 내용에 맞춰 채움. 특히 "파일 구조"와 "데이터 파일 설명"은 이슈 7~15를 거치며 실제로 생긴 `quiz.py`, `utils.py`, `state.json` 스키마를 반영.
+- 문서 작업 중 GUIDE 2번 체크리스트를 다시 훑다가, `KeyboardInterrupt`/`EOFError` 요건에 "저장"이 포함되어 있는데 실제 코드는 저장 없이 종료만 하고 있는 걸 발견 → 이슈 6에서 만든 구조를 보완(위 이슈 6 섹션의 "보완" 항목 참고). 이렇게 문서화 단계에서 요구사항을 다시 대조해보는 것도 코드 품질을 점검하는 한 방법.
+
+**결과** (`README.md`) — 실행 방법, 파일 구조, `state.json` 스키마 설명을 실제 코드에 맞춰 채워 넣음. 자세한 내용은 `README.md` 참고.
+
+---
+
+<!-- 이후 이슈(17~)는 여기에 이어서 추가 -->

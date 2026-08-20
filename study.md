@@ -306,4 +306,100 @@ def main():
 
 ---
 
-<!-- 이후 이슈(10~)는 여기에 이어서 추가 -->
+## 이슈 10. 퀴즈 추가 기능 (`feature/quiz-management`)
+
+**개념**
+- `add_quiz(quizzes)`: 사용자에게 문제 1개 + 선택지 4개 + 정답 번호를 순서대로 입력받아 `Quiz` 객체를 만들고, 인자로 받은 `quizzes` 리스트에 `append`.
+- 각 입력마다 `while not 값:` 패턴으로 빈 문자열을 막음 — `read_int`는 숫자 검증용이라 문자열(문제/선택지) 입력에는 못 쓰므로 직접 검증 루프를 작성.
+- 리스트는 mutable(참조로 전달)이라, 함수 안에서 `quizzes.append(...)`하면 `main()`이 갖고 있는 원본 리스트에도 그대로 반영됨 — 별도로 반환값을 돌려줄 필요 없음.
+
+**코드** (`main.py`)
+```python
+def add_quiz(quizzes):
+    """문제/선택지4개/정답을 입력받아 퀴즈를 추가한다."""
+    question = input("문제를 입력하세요: ").strip()
+    while not question:
+        print("문제는 비어있을 수 없습니다.")
+        question = input("문제를 입력하세요: ").strip()
+
+    choices = []
+    for i in range(1, 5):
+        choice = input(f"선택지 {i}를 입력하세요: ").strip()
+        while not choice:
+            print("선택지는 비어있을 수 없습니다.")
+            choice = input(f"선택지 {i}를 입력하세요: ").strip()
+        choices.append(choice)
+
+    answer = read_int("정답 번호(1~4)를 입력하세요: ", 1, 4)
+
+    quizzes.append(Quiz(question, choices, answer))
+    print("퀴즈가 추가되었습니다!")
+```
+
+---
+
+## 이슈 11. 퀴즈 목록 기능
+
+**개념**
+- `list_quizzes(quizzes)`: 등록된 퀴즈들의 질문과 정답 번호만 간단히 나열. 채점용이 아니라 "확인용"이라 선택지까지는 안 보여줌.
+- `enumerate(quizzes, start=1)`로 1번부터 번호를 매겨서 사람이 읽기 좋은 목록 형태로 출력.
+
+**코드** (`main.py`)
+```python
+def list_quizzes(quizzes):
+    """등록된 모든 퀴즈의 문제와 정답 번호를 목록으로 출력한다."""
+    if not quizzes:
+        print("등록된 퀴즈가 없습니다.")
+        return
+
+    print(f"\n총 {len(quizzes)}개의 퀴즈가 등록되어 있습니다.")
+    for i, quiz in enumerate(quizzes, start=1):
+        print(f"{i}. {quiz.question} (정답: {quiz.answer}번)")
+```
+
+---
+
+## 이슈 12. 점수 확인 기능
+
+**개념**
+- "최고 점수"는 한 번의 `play_quizzes` 호출로 끝나는 값이 아니라 여러 번 플레이해도 유지돼야 하는 상태 → `main()`에 `best_score = 0`을 두고 메뉴 루프가 도는 동안 계속 들고 있음 (아직 클래스가 없어서 지역 변수로 관리, 이슈 13에서 `QuizGame` 속성으로 옮겨감).
+- 이를 위해 `play_quizzes`가 이제 점수를 `print`만 하지 않고 `return score`로 값을 돌려주도록 바뀜 → `main()`이 그 값을 받아 `best_score`와 비교/갱신.
+- `show_score(best_score, total)`: 아직 한 번도 플레이 안 했으면(`best_score <= 0`) 안내 메시지, 아니면 "최고점수 / 전체문제수" 형태로 출력.
+
+**코드** (`main.py`)
+```python
+def show_score(best_score, total):
+    """지금까지 기록된 최고 점수를 출력한다."""
+    if best_score <= 0:
+        print("아직 기록된 점수가 없습니다. 퀴즈를 풀어보세요!")
+    else:
+        print(f"최고 점수: {best_score} / {total}")
+
+
+def main():
+    quizzes = default_quizzes()
+    best_score = 0
+
+    while True:
+        print_menu()
+        choice = read_int("선택: ", 1, 5)
+
+        if choice == 1:
+            score = play_quizzes(quizzes)
+            if score > best_score:
+                best_score = score
+                print("최고 점수를 갱신했습니다!")
+        elif choice == 2:
+            add_quiz(quizzes)
+        elif choice == 3:
+            list_quizzes(quizzes)
+        elif choice == 4:
+            show_score(best_score, len(quizzes))
+        elif choice == 5:
+            print("종료합니다.")
+            break
+```
+
+---
+
+<!-- 이후 이슈(13~)는 여기에 이어서 추가 -->

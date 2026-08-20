@@ -531,6 +531,7 @@ class QuizGame:
         if not os.path.exists(self.state_file):
             self.quizzes = default_quizzes()
             self.best_score = 0
+            self.save_state()   # 처음 실행한 순간부터 state.json이 존재하도록 즉시 저장
             return
 
         try:
@@ -544,6 +545,7 @@ class QuizGame:
             print("state.json 파일이 손상되어 기본 데이터로 시작합니다.")
             self.quizzes = default_quizzes()
             self.best_score = 0
+            self.save_state()   # 손상된 파일을 정상 기본값으로 즉시 덮어써 복구
 
     def save_state(self) -> None:
         data = {
@@ -554,7 +556,7 @@ class QuizGame:
             json.dump(data, f, ensure_ascii=False, indent=2)
 ```
 
-**주의 (헷갈리기 쉬운 부분)**: `state.json`은 저장소에 미리 들어있는 파일이 아니라 **`save_state()`가 처음 호출될 때 생성되는 파일**이다. `load_state()`는 파일이 없으면 그냥 기본 데이터를 메모리에 올려놓고 끝나서 이 시점엔 파일이 안 생김 — 실제 생성은 이슈 15에서 연결하는 저장 시점(퀴즈 추가/최고점수 갱신/예외 종료)에 일어남. 이번 프로젝트에서는 기본 상태(기본 퀴즈 5개, `best_score: 0`)를 한 번 커밋해뒀지만, 실행하면서 값이 계속 바뀌므로 git이 그 변경을 계속 추적하게 됨.
+**주의 (헷갈리기 쉬운 부분 → 수정됨)**: 처음엔 `load_state()`가 파일이 없을 때 기본 데이터를 메모리에만 올려놓고 끝났었는데, 그러면 사용자가 퀴즈를 추가하거나 점수를 갱신하기 전까지는 `state.json`이 아예 생기지 않는 문제가 있었음. "초기 문제 데이터부터 계속 `state.json`이 유지돼야 한다"는 요구에 맞춰, 파일이 없거나 손상된 두 경우 모두 기본값을 세팅한 직후 `self.save_state()`를 바로 호출하도록 수정 — `QuizGame()` 객체를 만드는 순간(=프로그램을 처음 실행하는 순간) `state.json`이 곧바로 생성/복구됨.
 
 ---
 

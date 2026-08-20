@@ -130,8 +130,8 @@ class QuizGame:
     def play(self) -> None:
         """사용자가 고른 개수만큼 퀴즈를 무작위 순서로 출제 및 채점한다.
 
-        전체 퀴즈를 다 풀었을 때만 최고 점수를 갱신한다(적은 개수만 풀면
-        "N개 중 최고 점수"라는 의미가 흐려지므로).
+        몇 문제를 풀었는지와 상관없이, 맞힌 개수 자체가 지금까지의
+        최고 점수보다 높으면 최고 점수를 갱신한다.
         """
         if not self.quizzes:
             print("등록된 퀴즈가 없습니다.")
@@ -170,8 +170,9 @@ class QuizGame:
         })
 
         if count < total:
-            print(f"(전체 {total}문제 중 {count}문제만 풀어서 최고 점수에는 반영되지 않습니다.)")
-        elif score > self.best_score:
+            print(f"(전체 {total}문제 중 {count}문제를 풀었습니다.)")
+
+        if score > self.best_score:
             self.best_score = score
             print("최고 점수를 갱신했습니다!")
 
@@ -216,9 +217,9 @@ class QuizGame:
             return
 
         if self.best_score > 0:
-            print(f"최고 점수: {self.best_score} / {len(self.quizzes)}")
+            print(f"최고 점수: {self.best_score}문제 맞힘 (한 번에 맞힌 개수 기준, 문제 수 무관)")
         else:
-            print("최고 점수: 아직 없음 (전체 문제를 다 풀면 기록됩니다)")
+            print("최고 점수: 아직 없음")
 
         print("\n[풀이 기록] (최신순)")
         for record in reversed(self.history):

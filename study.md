@@ -663,3 +663,56 @@ class QuizGame:
 ```
 
 ---
+
+## 추가 기능. 풀 문제 개수 선택 (`feature/play-count`, 이슈 번호 없음)
+
+**개념**
+- GUIDE의 이슈 1~18과 별개로 사용자가 요청한 추가 기능. `play()` 시작 시 전체 퀴즈 개수를 먼저 안내하고, 몇 문제를 풀지 직접 입력받음. `read_int(prompt, 1, total)`을 그대로 재사용하기 때문에, 범위 밖 숫자를 입력하면 (이슈 5에서 만든 검증 로직이 그대로) 다시 물어봄 — 새로 검증 코드를 짤 필요가 없었음.
+- 랜덤으로 섞은 전체 목록(`shuffled`)에서 앞의 `count`개만 슬라이싱(`shuffled[:count]`)해서 `selected`로 사용. "랜덤 순서"(이슈 18)와 "개수 선택"이 자연스럽게 합쳐짐 — 섞은 뒤 앞부분만 자르면 무작위로 고른 것과 같은 효과.
+- **최고 점수 갱신 조건 변경**: 기존엔 "점수가 `best_score`보다 크면 무조건 갱신"이었는데, 이제 일부만 풀 수 있게 되면서 "5문제 중 최고 점수"라는 의미가 흔들릴 수 있음(예: 2문제만 풀어서 2/2를 받으면 그게 5문제 기준 최고 점수라 부르기 애매함). 그래서 `count == total`(전체 문제를 다 풀었을 때)일 때만 최고 점수 비교/저장을 하도록 제한. 일부만 풀었을 땐 그날의 점수만 보여주고 안내 문구로 이유를 설명.
+- 기존 코드에 있던 사소한 버그도 같이 발견해서 고침: "최종 점수" 출력에서 분모를 `len(shuffled)`(항상 전체 개수)로 쓰고 있었는데, 실제로 푼 건 `selected`이므로 `len(selected)`로 고쳐야 정확함 (개수 선택 기능이 없던 이전까지는 `shuffled == selected`라 드러나지 않았던 버그).
+
+**코드** (`quiz.py`, `play()`)
+```python
+def play(self) -> None:
+    if not self.quizzes:
+        print("등록된 퀴즈가 없습니다.")
+        return
+
+    total = len(self.quizzes)
+    print(f"현재 등록된 퀴즈는 총 {total}개입니다.")
+    count = read_int(f"몇 문제를 푸시겠습니까? (1~{total}): ", 1, total)
+
+    shuffled = self.quizzes.copy()
+    random.shuffle(shuffled)
+    selected = shuffled[:count]
+
+    score = 0
+    for quiz in selected:
+        quiz.display()
+        while True:
+            choice = read_int("정답 번호를 입력하세요 (힌트를 보려면 0): ", 0, len(quiz.choices))
+            if choice == 0:
+                print(f"힌트: {quiz.hint}" if quiz.hint else "이 문제에는 힌트가 없습니다.")
+                continue
+            break
+
+        if quiz.check_answer(choice):
+            print("정답입니다!")
+            score += 1
+        else:
+            print(f"오답입니다. 정답은 {quiz.answer}번 이었습니다.")
+
+    print(f"\n최종 점수: {score} / {len(selected)}")
+
+    if count < total:
+        print(f"(전체 {total}문제 중 {count}문제만 풀어서 최고 점수에는 반영되지 않습니다.)")
+        return
+
+    if score > self.best_score:
+        self.best_score = score
+        print("최고 점수를 갱신했습니다!")
+        self.save_state()
+```
+
+---

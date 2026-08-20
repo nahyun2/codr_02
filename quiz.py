@@ -122,16 +122,25 @@ class QuizGame:
         print("=" * 20)
 
     def play(self) -> None:
-        """등록된 퀴즈를 무작위 순서로 출제 및 채점하고, 최고 점수를 갱신한다."""
+        """사용자가 고른 개수만큼 퀴즈를 무작위 순서로 출제 및 채점한다.
+
+        전체 퀴즈를 다 풀었을 때만 최고 점수를 갱신한다(적은 개수만 풀면
+        "N개 중 최고 점수"라는 의미가 흐려지므로).
+        """
         if not self.quizzes:
             print("등록된 퀴즈가 없습니다.")
             return
 
+        total = len(self.quizzes)
+        print(f"현재 등록된 퀴즈는 총 {total}개입니다.")
+        count = read_int(f"몇 문제를 푸시겠습니까? (1~{total}): ", 1, total)
+
         shuffled = self.quizzes.copy()
         random.shuffle(shuffled)
+        selected = shuffled[:count]
 
         score = 0
-        for quiz in shuffled:
+        for quiz in selected:
             quiz.display()
             while True:
                 choice = read_int("정답 번호를 입력하세요 (힌트를 보려면 0): ", 0, len(quiz.choices))
@@ -146,7 +155,11 @@ class QuizGame:
             else:
                 print(f"오답입니다. 정답은 {quiz.answer}번 이었습니다.")
 
-        print(f"\n최종 점수: {score} / {len(shuffled)}")
+        print(f"\n최종 점수: {score} / {len(selected)}")
+
+        if count < total:
+            print(f"(전체 {total}문제 중 {count}문제만 풀어서 최고 점수에는 반영되지 않습니다.)")
+            return
 
         if score > self.best_score:
             self.best_score = score

@@ -788,3 +788,44 @@ def delete_quiz(self) -> None:
 ```
 
 ---
+
+## 추가 기능. 최고 점수 기준 변경 (문제 수 무관, 맞힌 개수 기준)
+
+**개념**
+- 기존엔 "전체 문제를 다 풀었을 때만 최고 점수 갱신"이었는데(개수 선택 기능을 넣으면서 "N개 중 최고 점수"라는 의미를 지키려 했던 것), 사용자가 이 제약을 없애고 **몇 문제를 풀었든 맞힌 개수 자체가 역대 최고면 최고 점수로 기록**하도록 요청. 즉 `best_score`의 의미가 "전체 문제 기준 최고 점수"에서 "한 번에 맞힌 문제 수의 최댓값"으로 바뀜.
+- `play()`의 `if count < total: ... elif score > self.best_score: ...`처럼 `count`와 `total`이 같은지에 따라 최고점수 갱신 여부가 갈리던 `if/elif`를 없애고, `count`/`total`과 무관하게 항상 `if score > self.best_score:`만 검사하도록 단순화. 부분 풀이 안내 메시지(`전체 N문제 중 M문제를 풀었습니다`)는 정보성으로 남기되, 더 이상 "최고 점수에는 반영 안 됨"이라는 조건부 문구가 아니게 됨.
+- `show_score()`의 표시 방식도 함께 손봄: `best_score`가 이제 특정 라운드의 "전체 문제 수" 대비 점수가 아니라 그냥 "한 번에 맞힌 개수"이므로, `len(self.quizzes)`를 분모로 쓰는 `{best_score} / {전체개수}` 표기는 더 이상 정확하지 않음(예: 5문제 중 2문제만 풀어서 2개 다 맞혔다면 `best_score`는 2인데 분모를 5로 쓰면 "5개 중 2개"처럼 보여서 오해의 소지가 있음). 그래서 분모 없이 `"{best_score}문제 맞힘 (한 번에 맞힌 개수 기준, 문제 수 무관)"`처럼 기준을 명시하는 문장으로 변경.
+- `history`에는 각 기록마다 `score`와 `total`이 그대로 남아있으므로, "이 최고 점수가 몇 문제 중 몇 개였는지"가 궁금하면 풀이 기록 목록에서 확인 가능 — `best_score` 한 줄만으로는 그 맥락이 사라지지만, 상세 내역은 `history`가 보완해줌.
+
+**코드 변경** (`quiz.py`)
+```python
+# play() 끝부분 — before
+if count < total:
+    print(f"(전체 {total}문제 중 {count}문제만 풀어서 최고 점수에는 반영되지 않습니다.)")
+elif score > self.best_score:
+    self.best_score = score
+    print("최고 점수를 갱신했습니다!")
+
+# play() 끝부분 — after
+if count < total:
+    print(f"(전체 {total}문제 중 {count}문제를 풀었습니다.)")
+
+if score > self.best_score:
+    self.best_score = score
+    print("최고 점수를 갱신했습니다!")
+```
+```python
+# show_score() — before
+if self.best_score > 0:
+    print(f"최고 점수: {self.best_score} / {len(self.quizzes)}")
+else:
+    print("최고 점수: 아직 없음 (전체 문제를 다 풀면 기록됩니다)")
+
+# show_score() — after
+if self.best_score > 0:
+    print(f"최고 점수: {self.best_score}문제 맞힘 (한 번에 맞힌 개수 기준, 문제 수 무관)")
+else:
+    print("최고 점수: 아직 없음")
+```
+
+---

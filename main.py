@@ -1,3 +1,6 @@
+from utils import read_int
+
+
 def print_menu():
     """메뉴 화면을 출력한다."""
     print("="*20)
@@ -14,9 +17,11 @@ def print_menu():
 def main():
     while True:
         print_menu()
-        choice = input("선택: ")
+        # read_int가 빈 입력, 숫자가 아닌 입력, 1~5 범위 밖 입력을
+        # 전부 걸러내고 재입력을 요청하므로 여기서는 별도 검증이 필요 없다.
+        choice = read_int("선택: ", 1, 5)
 
-        if choice == "5":
+        if choice == 5:
             print("종료합니다.")
             break
         else:

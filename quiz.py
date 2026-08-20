@@ -7,6 +7,7 @@ from typing import Any, Dict, List
 from utils import read_int
 
 NUM_QUIZ_CHOICES = 4  # add_quiz()로 새 퀴즈를 만들 때 받는 선택지 개수
+NO_QUIZZES_MESSAGE = "등록된 퀴즈가 없습니다."  # 퀴즈가 하나도 없을 때 여러 메서드가 공통으로 출력
 
 
 class Quiz:
@@ -152,7 +153,7 @@ class QuizGame:
         최고 점수보다 높으면 최고 점수를 갱신한다.
         """
         if not self.quizzes:
-            print("등록된 퀴즈가 없습니다.")
+            print(NO_QUIZZES_MESSAGE)
             return
 
         total = len(self.quizzes)
@@ -231,7 +232,7 @@ class QuizGame:
     def list_quizzes(self) -> None:
         """등록된 모든 퀴즈의 문제와 정답 번호를 목록으로 출력한다."""
         if not self.quizzes:
-            print("등록된 퀴즈가 없습니다.")
+            print(NO_QUIZZES_MESSAGE)
             return
 
         print(f"\n총 {len(self.quizzes)}개의 퀴즈가 등록되어 있습니다.")
@@ -241,7 +242,7 @@ class QuizGame:
     def delete_quiz(self) -> None:
         """번호를 입력받아 해당 퀴즈를 목록에서 삭제한다. 0을 입력하면 취소한다."""
         if not self.quizzes:
-            print("등록된 퀴즈가 없습니다.")
+            print(NO_QUIZZES_MESSAGE)
             return
 
         self.list_quizzes()

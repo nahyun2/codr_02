@@ -716,3 +716,73 @@ def play(self) -> None:
 ```
 
 ---
+
+## 추가 기능. 퀴즈 삭제 취소 + 풀이 기록 최신순 조회
+
+**개념 ① 삭제 취소**
+- `delete_quiz()`의 `read_int` 최소값을 `1`에서 `0`으로 낮추고, "취소하려면 0"이라고 안내. `0`이 들어오면 `pop` 없이 그냥 메시지 출력 후 `return` — 별도의 "정말 삭제하시겠습니까?" 확인 단계 없이, 번호 입력 자체를 취소 가능한 선택지로 만든 것.
+
+**개념 ② 풀이 기록**
+- 지금까지는 `best_score` 하나만 저장해서 "역대 최고 몇 점"만 알 수 있었음. 이제 `self.history`라는 리스트에 **매번 플레이할 때마다** 기록 하나(`{"date":..., "score":..., "total":...}`)를 추가해서, 언제 몇 문제 중 몇 개를 맞혔는지 전부 남김. (전체를 안 풀어도 기록되지만, `best_score` 갱신에는 전체를 풀었을 때만 반영 — 이 둘의 조건이 다름에 주의.)
+- `datetime.now().strftime("%Y-%m-%d %H:%M")`로 기록 시각을 사람이 읽기 쉬운 문자열로 저장. JSON은 날짜 타입을 직접 저장 못 하므로 문자열로 변환해서 저장(직렬화)한 것 — 이슈 14에서 `Quiz.to_dict()`가 했던 것과 같은 이유.
+- `show_score()`에서 `reversed(self.history)`로 순회 — 리스트에는 오래된 기록이 앞, 최신 기록이 뒤에 쌓이므로(항상 `append`), 화면에는 최신순으로 보여주려면 뒤집어서 순회하면 됨. 원본 리스트 자체를 뒤집는 게 아니라 순회 순서만 뒤집는 것이라 `self.history`의 저장 순서(오래된 것부터)는 그대로 유지됨.
+- `play()`의 저장 로직도 같이 정리: 원래는 "최고 점수 갱신할 때만" `save_state()`를 호출했는데, 이제 매 플레이마다 기록을 남겨야 하므로 함수 끝에서 한 번만 `save_state()`를 호출하도록 단순화(조건 분기 3개가 있던 걸 `if/elif`로 정리하고 저장은 마지막에 공통으로).
+- `state.json` 스키마에 `"history"` 필드가 새로 추가됨. `load_state()`는 `data.get("history", [])`로 읽어서, 이 필드가 없던 예전 `state.json`을 불러와도 에러 없이 빈 기록으로 시작(하위 호환 — 이슈 18의 `hint` 필드 추가 때와 같은 패턴).
+
+**코드** (`quiz.py`, 핵심 변경 부분)
+```python
+def __init__(self, state_file: str = "state.json"):
+    self.state_file = state_file
+    self.quizzes: List[Quiz] = []
+    self.best_score: int = 0
+    self.history: List[Dict[str, Any]] = []
+    self.load_state()
+
+# play() 끝부분
+print(f"\n최종 점수: {score} / {len(selected)}")
+
+self.history.append({
+    "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+    "score": score,
+    "total": len(selected),
+})
+
+if count < total:
+    print(f"(전체 {total}문제 중 {count}문제만 풀어서 최고 점수에는 반영되지 않습니다.)")
+elif score > self.best_score:
+    self.best_score = score
+    print("최고 점수를 갱신했습니다!")
+
+self.save_state()
+
+def show_score(self) -> None:
+    if not self.history:
+        print("아직 기록된 점수가 없습니다. 퀴즈를 풀어보세요!")
+        return
+
+    if self.best_score > 0:
+        print(f"최고 점수: {self.best_score} / {len(self.quizzes)}")
+    else:
+        print("최고 점수: 아직 없음 (전체 문제를 다 풀면 기록됩니다)")
+
+    print("\n[풀이 기록] (최신순)")
+    for record in reversed(self.history):
+        print(f"- {record['date']}  {record['score']} / {record['total']}")
+
+def delete_quiz(self) -> None:
+    if not self.quizzes:
+        print("등록된 퀴즈가 없습니다.")
+        return
+
+    self.list_quizzes()
+    index = read_int("삭제할 퀴즈 번호를 입력하세요 (취소하려면 0): ", 0, len(self.quizzes))
+    if index == 0:
+        print("삭제를 취소했습니다.")
+        return
+
+    removed = self.quizzes.pop(index - 1)
+    self.save_state()
+    print(f"'{removed.question}' 퀴즈를 삭제했습니다.")
+```
+
+---

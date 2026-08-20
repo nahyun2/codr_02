@@ -1,5 +1,7 @@
 from typing import List
 
+from utils import read_int
+
 
 class Quiz:
     """퀴즈 문제 하나(질문/선택지/정답)를 표현하는 클래스."""
@@ -42,3 +44,82 @@ def default_quizzes() -> List[Quiz]:
          ["버그", "피처", "패치", "커밋"], 1),
     ]
     return [Quiz(q, c, a) for q, c, a in raw]
+
+
+class QuizGame:
+    """퀴즈 목록/최고 점수 상태를 갖고 게임 전체 흐름을 관리하는 클래스."""
+
+    def __init__(self):
+        self.quizzes: List[Quiz] = default_quizzes()
+        self.best_score: int = 0
+
+    def show_menu(self) -> None:
+        """메뉴 화면을 출력한다."""
+        print("=" * 20)
+        print("🎯 넌센스 퀴즈 게임 🎯")
+        print("=" * 20)
+        print("1. 퀴즈 풀기")
+        print("2. 퀴즈 추가")
+        print("3. 퀴즈 목록")
+        print("4. 점수 확인")
+        print("5. 종료")
+        print("=" * 20)
+
+    def play(self) -> None:
+        """등록된 모든 퀴즈를 순서대로 출제 및 채점하고, 최고 점수를 갱신한다."""
+        if not self.quizzes:
+            print("등록된 퀴즈가 없습니다.")
+            return
+
+        score = 0
+        for quiz in self.quizzes:
+            quiz.display()
+            choice = read_int("정답 번호를 입력하세요: ", 1, len(quiz.choices))
+            if quiz.check_answer(choice):
+                print("정답입니다!")
+                score += 1
+            else:
+                print(f"오답입니다. 정답은 {quiz.answer}번 이었습니다.")
+
+        print(f"\n최종 점수: {score} / {len(self.quizzes)}")
+
+        if score > self.best_score:
+            self.best_score = score
+            print("최고 점수를 갱신했습니다!")
+
+    def add_quiz(self) -> None:
+        """문제/선택지4개/정답을 입력받아 퀴즈를 추가한다."""
+        question = input("문제를 입력하세요: ").strip()
+        while not question:
+            print("문제는 비어있을 수 없습니다.")
+            question = input("문제를 입력하세요: ").strip()
+
+        choices = []
+        for i in range(1, 5):
+            choice = input(f"선택지 {i}를 입력하세요: ").strip()
+            while not choice:
+                print("선택지는 비어있을 수 없습니다.")
+                choice = input(f"선택지 {i}를 입력하세요: ").strip()
+            choices.append(choice)
+
+        answer = read_int("정답 번호(1~4)를 입력하세요: ", 1, 4)
+
+        self.quizzes.append(Quiz(question, choices, answer))
+        print("퀴즈가 추가되었습니다!")
+
+    def list_quizzes(self) -> None:
+        """등록된 모든 퀴즈의 문제와 정답 번호를 목록으로 출력한다."""
+        if not self.quizzes:
+            print("등록된 퀴즈가 없습니다.")
+            return
+
+        print(f"\n총 {len(self.quizzes)}개의 퀴즈가 등록되어 있습니다.")
+        for i, quiz in enumerate(self.quizzes, start=1):
+            print(f"{i}. {quiz.question} (정답: {quiz.answer}번)")
+
+    def show_score(self) -> None:
+        """지금까지 기록된 최고 점수를 출력한다."""
+        if self.best_score <= 0:
+            print("아직 기록된 점수가 없습니다. 퀴즈를 풀어보세요!")
+        else:
+            print(f"최고 점수: {self.best_score} / {len(self.quizzes)}")

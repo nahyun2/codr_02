@@ -476,4 +476,90 @@ def main():
 
 ---
 
-<!-- 이후 이슈(14~)는 여기에 이어서 추가 -->
+## 이슈 14. `state.json` 저장/불러오기 구현 (`feature/persistence`)
+
+**개념**
+- 지금까지는 프로그램을 끄면 추가한 퀴즈나 최고 점수가 모두 사라졌음. `state.json` 파일에 직렬화(serialize)해서 남겨두고, 다음 실행 때 역직렬화(deserialize)해서 복원하는 게 목표.
+- `Quiz.to_dict()` / `Quiz.from_dict()`: `Quiz` 객체 ↔ `dict` 상호 변환. JSON은 파이썬 객체를 직접 저장할 수 없고 `dict`/`list`/기본 타입만 저장 가능하므로, 저장 직전엔 `dict`로, 불러온 직후엔 다시 `Quiz`로 변환하는 다리 역할.
+  - `from_dict`는 `@classmethod`로 선언 — 인스턴스가 없는 상태에서 `Quiz.from_dict(data)`처럼 클래스 자체를 통해 새 객체를 만들어야 하기 때문(일반 메서드는 이미 만들어진 `self`가 있어야 호출 가능).
+- `QuizGame.__init__(self, state_file="state.json")`: 이제 생성자가 곧바로 `default_quizzes()`를 쓰지 않고 `load_state()`를 호출. `state_file` 경로를 인자로 받게 해서, 나중에 테스트할 때 임시 파일 경로를 넣는 식으로도 재사용 가능.
+- `load_state()`의 방어적 처리 (요구사항 "공통 예외 처리"의 `state.json` 부분):
+  - 파일이 아예 없으면(`os.path.exists`가 `False`) → 기본 데이터로 시작.
+  - 파일은 있지만 JSON 파싱 실패(`json.JSONDecodeError`)나 예상과 다른 구조(`KeyError`/`ValueError`/`TypeError` — 예: `Quiz.from_dict`에서 `Quiz.__init__`의 검증 실패)면 → `except`로 잡아서 기본 데이터로 대체. 어떤 경우에도 프로그램이 죽지 않음.
+- `save_state()`: `quizzes`/`best_score`를 `dict`로 만들어 `json.dump`. `ensure_ascii=False`를 꼭 줘야 한글이 `\uXXXX` 이스케이프가 아니라 사람이 읽을 수 있는 문자 그대로 저장됨.
+
+**코드** (`quiz.py`)
+```python
+class Quiz:
+    ...
+    def to_dict(self) -> Dict[str, Any]:
+        return {"question": self.question, "choices": self.choices, "answer": self.answer}
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Quiz":
+        return cls(data["question"], data["choices"], data["answer"])
+
+
+class QuizGame:
+    def __init__(self, state_file: str = "state.json"):
+        self.state_file = state_file
+        self.quizzes: List[Quiz] = []
+        self.best_score: int = 0
+        self.load_state()
+
+    def load_state(self) -> None:
+        if not os.path.exists(self.state_file):
+            self.quizzes = default_quizzes()
+            self.best_score = 0
+            return
+
+        try:
+            with open(self.state_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            raw_quizzes = data.get("quizzes", [])
+            self.quizzes = [Quiz.from_dict(q) for q in raw_quizzes] if raw_quizzes else default_quizzes()
+            self.best_score = data.get("best_score", 0)
+        except (json.JSONDecodeError, KeyError, ValueError, TypeError):
+            print("state.json 파일이 손상되어 기본 데이터로 시작합니다.")
+            self.quizzes = default_quizzes()
+            self.best_score = 0
+
+    def save_state(self) -> None:
+        data = {
+            "quizzes": [q.to_dict() for q in self.quizzes],
+            "best_score": self.best_score,
+        }
+        with open(self.state_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+```
+
+---
+
+## 이슈 15. 퀴즈 추가/점수 갱신 시 자동 저장 연결
+
+**개념**
+- `save_state()`는 이슈 14에서 "저장하는 방법"만 만든 것이고, 언제 호출할지는 정하지 않았음. 이슈 15는 그 호출 시점 두 곳을 연결하는 작업.
+- ① `add_quiz()` 끝에서 새 퀴즈를 `append`한 직후 `save_state()` 호출 → 추가 직후 프로그램이 예기치 않게 꺼져도(정전, 강제종료 등) 방금 추가한 퀴즈가 유실되지 않음.
+- ② `play()`에서 `self.best_score`를 갱신하는 조건문(`if score > self.best_score:`) 안에서 `save_state()` 호출 → 매번 풀 때마다 저장하는 게 아니라 **기록을 갱신했을 때만** 저장해서 불필요한 파일 쓰기를 줄임.
+- 종료 시점(`main.py`의 선택지 5)에는 이미 위 두 지점에서 저장이 끝난 상태라 별도 저장 호출이 필수는 아니지만, "혹시 모를 유실"을 더 확실히 막고 싶다면 종료 직전에 한 번 더 저장하는 방어적 습관도 고려할 수 있음(현재 구현에는 미포함).
+
+**코드** (`quiz.py`, 두 군데만 한 줄씩 추가)
+```python
+    def play(self) -> None:
+        ...
+        if score > self.best_score:
+            self.best_score = score
+            print("최고 점수를 갱신했습니다!")
+            self.save_state()          # ← 추가
+
+    def add_quiz(self) -> None:
+        ...
+        self.quizzes.append(Quiz(question, choices, answer))
+        self.save_state()              # ← 추가
+        print("퀴즈가 추가되었습니다!")
+```
+
+---
+
+<!-- 이후 이슈(16~)는 여기에 이어서 추가 -->

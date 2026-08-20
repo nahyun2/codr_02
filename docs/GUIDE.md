@@ -18,26 +18,26 @@
 ## 2. 최종 결과물 요구사항 (요약 체크리스트)
 
 **기능**
-- [ ] 메뉴에서 번호 선택 → 퀴즈풀기 / 퀴즈추가 / 퀴즈목록 / 점수확인 / 종료
-- [ ] 선택한 주제(현재: 넌센스 퀴즈)의 퀴즈 5개 이상
-- [ ] 종료 후 재실행해도 퀴즈/최고점수 유지 (`state.json`)
+- [x] 메뉴에서 번호 선택 → 퀴즈풀기 / 퀴즈추가 / 퀴즈목록 / 점수확인 / 종료
+- [x] 선택한 주제(현재: 넌센스 퀴즈)의 퀴즈 5개 이상
+- [x] 종료 후 재실행해도 퀴즈/최고점수 유지 (`state.json`)
 
 **코드 구조**
-- [ ] 클래스 2개 이상 (`Quiz`, `QuizGame`)
-- [ ] 기능별 메서드 분리 (입력 처리 / 게임 진행 / 저장 로직 등)
-- [ ] `state.json`을 프로젝트 루트에 UTF-8로 저장/불러오기
+- [x] 클래스 2개 이상 (`Quiz`, `QuizGame`)
+- [x] 기능별 메서드 분리 (입력 처리 / 게임 진행 / 저장 로직 등)
+- [x] `state.json`을 프로젝트 루트에 UTF-8로 저장/불러오기
 
 **공통 입력/예외 처리 (최소 요구)**
-- [ ] 숫자 입력: 공백 제거, 변환 실패(abc), 범위 밖, 빈 입력 → 안내 후 재입력
-- [ ] `KeyboardInterrupt` / `EOFError` → 비정상 종료 없이 안내 후 저장·안전 종료
-- [ ] `state.json` 없음/손상 시에도 실행 가능 (기본 데이터로 대체)
+- [x] 숫자 입력: 공백 제거, 변환 실패(abc), 범위 밖, 빈 입력 → 안내 후 재입력
+- [x] `KeyboardInterrupt` / `EOFError` → 비정상 종료 없이 안내 후 저장·안전 종료
+- [x] `state.json` 없음/손상 시에도 실행 가능 (기본 데이터로 대체)
 
 **GitHub**
-- [ ] 커밋 10개 이상 (의미있는 메시지: `Feat:`/`Fix:`/`Docs:`/`Refactor:`)
-- [ ] 브랜치 생성 + 병합(merge) 최소 1회 (퀴즈 풀기 기능에서 사용)
-- [ ] `clone`, `pull` 각 1회 이상 사용 기록 (전용 실습 단계 있음, 3-13번)
-- [ ] Git 명령어 7종(`init/add/commit/push/pull/checkout/clone`) 각 1load_data회 이상
-- [ ] README.md에 필수 항목 6개 (개요/주제선정이유/실행방법/기능목록/파일구조/데이터파일설명)
+- [x] 커밋 10개 이상 (의미있는 메시지: `Feat:`/`Fix:`/`Docs:`/`Refactor:`)
+- [x] 브랜치 생성 + 병합(merge) 최소 1회 (퀴즈 풀기 기능에서 사용)
+- [ ] `clone`, `pull` 각 1회 이상 사용 기록 (전용 실습 단계 있음, 이슈 17)
+- [ ] Git 명령어 7종(`init/add/commit/push/pull/checkout/clone`) 각 1회 이상
+- [x] README.md에 필수 항목 6개 (개요/주제선정이유/실행방법/기능목록/파일구조/데이터파일설명)
 
 ## 3. 기능별 구현 순서 + Git 체크포인트
 
@@ -49,29 +49,31 @@ GitHub 이슈(#1~#18)가 이 순서와 거의 1:1로 대응합니다.
 | 2 | README/​.gitignore 뼈대 | commit | ✅ 완료 |
 | 3 | main.py 진입점 + 메뉴 출력 | commit | ✅ 완료 |
 | 4 | 메뉴 선택 루프 + 종료 처리 | commit | ✅ 완료 |
-| 5 | 공통 숫자 입력 검증 함수 | commit | ⬜ |
-| 6 | KeyboardInterrupt/EOFError 안전 종료 | commit | ⬜ |
-| 7 | Quiz 클래스 정의 | commit | ⬜ |
-| 8 | 기본 퀴즈 데이터 5개 이상 | commit | ⬜ |
-| 9 | 퀴즈 풀기 (★`feature/play` 브랜치에서 작업 후 main에 merge) | commit + merge | ⬜ |
-| 10 | 퀴즈 추가 기능 | commit | ⬜ |
-| 11 | 퀴즈 목록 기능 | commit | ⬜ |
-| 12 | 점수 확인 기능 | commit | ⬜ |
-| 13 | QuizGame 클래스로 책임 분리 (리팩터링) | commit | ⬜ |
-| 14 | state.json 저장/불러오기 구현 | commit | ⬜ |
-| 15 | 퀴즈 추가/점수 갱신 시 자동 저장 연결 | commit | ⬜ |
-| 16 | README 최종 작성 | commit + push | ⬜ |
-| 17 | 저장소 clone/pull 실습 (별도 디렉토리) | clone, commit, push, pull | ⬜ |
-| 18 | 보너스 (선택) | - | ⬜ |
+| 5 | 공통 숫자 입력 검증 함수 | commit | ✅ 완료 |
+| 6 | KeyboardInterrupt/EOFError 안전 종료 | commit | ✅ 완료 |
+| 7 | Quiz 클래스 정의 | commit | ✅ 완료 |
+| 8 | 기본 퀴즈 데이터 5개 이상 | commit | ✅ 완료 |
+| 9 | 퀴즈 풀기 (★`feature/play` 브랜치에서 작업 후 main에 merge) | commit + merge | ✅ 완료 |
+| 10 | 퀴즈 추가 기능 | commit | ✅ 완료 |
+| 11 | 퀴즈 목록 기능 | commit | ✅ 완료 |
+| 12 | 점수 확인 기능 | commit | ✅ 완료 |
+| 13 | QuizGame 클래스로 책임 분리 (리팩터링) | commit | ✅ 완료 |
+| 14 | state.json 저장/불러오기 구현 | commit | ✅ 완료 |
+| 15 | 퀴즈 추가/점수 갱신 시 자동 저장 연결 | commit | ✅ 완료 |
+| 16 | README 최종 작성 | commit + push | ✅ 완료 (push는 아직) |
+| 17 | 저장소 clone/pull 실습 (별도 디렉토리) | clone, commit, push, pull | ⬜ (사용자 개입 필요) |
+| 18 | 보너스 (선택) | - | ⬜ (사용자 개입 필요) |
 
-## 4. 현재 진행 상황 (스냅샷: 2026-08-12)
+## 4. 현재 진행 상황 (스냅샷: 2026-08-20)
 
-- 커밋 4개: `Initial commit` → `Docs: 초기 설정` → `Feat: main.py 진입점 및 메뉴 화면 출력` → `Feat: 메뉴 선택 루프 및 종료 처리`
-- `main.py`: `print_menu()`와 메뉴 루프만 존재. 1~4번 선택지는 "아직 준비 중" placeholder. 잘못된 입력(문자/범위밖/빈입력) 처리 없음.
-- `Quiz` / `QuizGame` 클래스: 아직 없음
-- `state.json`: 아직 없음
-- 브랜치: `main`만 존재 (feature 브랜치 아직 없음)
-- GitHub 이슈 #1~#18 등록됨, #1~#4는 closed, #5~#18은 open
+- 이슈 1~16 코드/문서 작업 완료 (`develop` 브랜치 기준, 커밋 21개). `main`은 이슈 9까지 merge된 상태 — 이슈 10~16은 아직 `main`에 merge 전.
+- `main.py`: `QuizGame` 객체 하나로 메뉴 루프 위임. `KeyboardInterrupt`/`EOFError` 발생 시 `game.save_state()` 후 안전 종료.
+- `quiz.py`: `Quiz`(질문/선택지/정답, `to_dict`/`from_dict` 포함), `QuizGame`(퀴즈 목록/최고점수 관리, `state.json` 저장/불러오기, 메뉴별 기능) 클래스 존재. `default_quizzes()`로 기본 5문제 제공.
+- `utils.py`: `read_int` 공통 숫자 입력 검증 함수.
+- `state.json`: 실행 시 자동 생성/로드, 퀴즈 추가·최고점수 갱신 시 자동 저장.
+- 브랜치: `main`, `develop`, `feature/quiz-core`, `feature/play`, `feature/quiz-management`, `feature/persistence`, `feature/bonus` — feature 브랜치는 각자 담당 이슈 작업 후 `develop`에 merge, `develop`은 마일스톤 단위로 `main`에 merge하는 흐름 사용 중.
+- 남은 것: 이슈 17(clone/pull 실습, 실제 push 포함이라 사용자 확인 필요), 이슈 18(보너스 기능 선택 필요), README/커밋 이력 GitHub push, 5번 체크리스트의 스크린샷/기록.
+- GitHub 이슈 #1~#18 등록됨, #1~#4는 closed, #5~#18은 open (진행 상황과 별개로 이슈 close는 아직 안 함 — 필요 시 push 후 정리)
 
 **주의**: 이 섹션은 특정 시점의 스냅샷입니다. 실제 최신 상태는 `git log --oneline --graph`, `git branch -a` 로 항상 다시 확인할 것 — 특히 다른 컴퓨터에서 pull 받은 직후.
 

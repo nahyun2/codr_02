@@ -158,7 +158,7 @@ if choice == 5:   # 이제 int라서 5로 비교 (이슈4의 "5"와 다름)
 - 처리 안 하면 지저분한 트레이스백과 함께 프로그램이 죽음. `main()` 호출부(`if __name__ == "__main__":`)에서 한 번에 감싸서, 어디서 발생하든(지금은 `read_int` 안에서 `raise`되어 여기까지 전달됨) 깔끔한 안내 메시지 후 정상 종료로 바꿈.
 - 예외 처리 위치를 `main()` 내부가 아니라 최상단 진입점에 둔 이유: 로직 코드(`main()`)와 "프로그램 레벨 안전장치"를 분리하기 위함.
 
-**코드** (`main.py`)
+**코드** (`main.py`, 최초 작성 당시)
 ```python
 if __name__ == "__main__":
     try:
@@ -167,6 +167,26 @@ if __name__ == "__main__":
         print("\n프로그램을 안전하게 종료합니다. (Ctrl+C 감지)")
     except EOFError:
         print("\n입력이 종료되어 프로그램을 안전하게 종료합니다.")
+```
+
+**보완 (이슈 16 정리 중 발견)**: GUIDE 체크리스트에는 "안내 후 **저장**·안전 종료"가 명시돼 있는데, `try/except`가 `main()` 바깥(`__main__`)에 있으면 `QuizGame` 객체(`game`)에 접근할 수 없어 종료 시 저장을 못 함. 그래서 `try/except`를 `main()` 안쪽, `game = QuizGame()` 다음으로 옮기고 각 `except`에서 `game.save_state()`를 먼저 호출하도록 수정함.
+```python
+def main():
+    game = QuizGame()
+
+    try:
+        while True:
+            ...
+    except KeyboardInterrupt:
+        game.save_state()
+        print("\n프로그램을 안전하게 종료합니다. (Ctrl+C 감지)")
+    except EOFError:
+        game.save_state()
+        print("\n입력이 종료되어 프로그램을 안전하게 종료합니다.")
+
+
+if __name__ == "__main__":
+    main()
 ```
 
 ---
@@ -562,4 +582,15 @@ class QuizGame:
 
 ---
 
-<!-- 이후 이슈(16~)는 여기에 이어서 추가 -->
+## 이슈 16. README 최종 작성 (`develop`)
+
+**개념**
+- 제출용 문서라 브랜치를 따로 안 파고 `develop`에서 바로 작업 (문서/설정 변경은 GUIDE 3번 기준에 따라 feature 브랜치 없이 진행).
+- README 필수 6항목(개요/주제선정이유/실행방법/기능목록/파일구조/데이터파일설명)의 `TODO` 주석을 실제 구현 내용에 맞춰 채움. 특히 "파일 구조"와 "데이터 파일 설명"은 이슈 7~15를 거치며 실제로 생긴 `quiz.py`, `utils.py`, `state.json` 스키마를 반영.
+- 문서 작업 중 GUIDE 2번 체크리스트를 다시 훑다가, `KeyboardInterrupt`/`EOFError` 요건에 "저장"이 포함되어 있는데 실제 코드는 저장 없이 종료만 하고 있는 걸 발견 → 이슈 6에서 만든 구조를 보완(위 이슈 6 섹션의 "보완" 항목 참고). 이렇게 문서화 단계에서 요구사항을 다시 대조해보는 것도 코드 품질을 점검하는 한 방법.
+
+**결과** (`README.md`) — 실행 방법, 파일 구조, `state.json` 스키마 설명을 실제 코드에 맞춰 채워 넣음. 자세한 내용은 `README.md` 참고.
+
+---
+
+<!-- 이후 이슈(17~)는 여기에 이어서 추가 -->

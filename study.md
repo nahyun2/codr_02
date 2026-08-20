@@ -402,4 +402,78 @@ def main():
 
 ---
 
-<!-- 이후 이슈(13~)는 여기에 이어서 추가 -->
+## 이슈 13. `QuizGame` 클래스로 책임 분리 (리팩터링)
+
+**개념**
+- 리팩터링(refactoring): 동작은 그대로 유지하면서 코드 구조만 개선하는 작업. 여태까지 `main.py`에 흩어져 있던 `quizzes`(리스트), `best_score`(변수), `play_quizzes`/`add_quiz`/`list_quizzes`/`show_score`(함수)를 `QuizGame`이라는 클래스 하나로 묶음.
+- 왜 묶나: "퀴즈 게임의 상태(퀴즈 목록, 최고 점수)"와 "그 상태를 다루는 동작(풀기/추가/목록/점수)"이 항상 같이 다녀야 하는데, 지금까지는 함수마다 `quizzes`, `best_score`를 일일이 인자로 넘기고 반환값을 다시 받아야 했음. 클래스로 묶으면 `self.quizzes`, `self.best_score`로 공유되어 인자 전달이 사라짐.
+- `__init__(self)`: 객체 생성 시점에 `self.quizzes = default_quizzes()`, `self.best_score = 0`으로 초기 상태를 세팅. 함수형 코드의 `quizzes = default_quizzes()` 한 줄이 생성자 안으로 들어간 것.
+- 각 메서드는 예전 함수와 로직이 거의 동일하고, `quizzes`/`best_score` 매개변수 대신 `self.quizzes`/`self.best_score`를 사용하도록만 바뀜. `play()`는 이제 점수를 `return`하지 않고 `self.best_score`를 직접 갱신(호출한 쪽에서 비교할 필요가 없어짐).
+- `main.py`는 이제 "메뉴 선택값 읽기 → 어떤 메서드를 부를지 분기"만 담당하는 아주 얇은 진입점이 됨. `game = QuizGame()` 객체 하나만 만들면 이후 모든 상태/로직은 그 객체가 책임짐.
+
+**코드** (`quiz.py`)
+```python
+class QuizGame:
+    """퀴즈 목록/최고 점수 상태를 갖고 게임 전체 흐름을 관리하는 클래스."""
+
+    def __init__(self):
+        self.quizzes: List[Quiz] = default_quizzes()
+        self.best_score: int = 0
+
+    def show_menu(self) -> None:
+        ...
+
+    def play(self) -> None:
+        if not self.quizzes:
+            print("등록된 퀴즈가 없습니다.")
+            return
+
+        score = 0
+        for quiz in self.quizzes:
+            quiz.display()
+            choice = read_int("정답 번호를 입력하세요: ", 1, len(quiz.choices))
+            if quiz.check_answer(choice):
+                print("정답입니다!")
+                score += 1
+            else:
+                print(f"오답입니다. 정답은 {quiz.answer}번 이었습니다.")
+
+        print(f"\n최종 점수: {score} / {len(self.quizzes)}")
+        if score > self.best_score:
+            self.best_score = score
+            print("최고 점수를 갱신했습니다!")
+
+    def add_quiz(self) -> None: ...
+    def list_quizzes(self) -> None: ...
+    def show_score(self) -> None: ...
+```
+
+**코드** (`main.py`, 리팩터링 후)
+```python
+from quiz import QuizGame
+from utils import read_int
+
+
+def main():
+    game = QuizGame()
+
+    while True:
+        game.show_menu()
+        choice = read_int("선택: ", 1, 5)
+
+        if choice == 1:
+            game.play()
+        elif choice == 2:
+            game.add_quiz()
+        elif choice == 3:
+            game.list_quizzes()
+        elif choice == 4:
+            game.show_score()
+        elif choice == 5:
+            print("종료합니다.")
+            break
+```
+
+---
+
+<!-- 이후 이슈(14~)는 여기에 이어서 추가 -->

@@ -8,9 +8,9 @@ def main():
     try:
         while True:
             game.show_menu()
-            # read_int가 빈 입력, 숫자가 아닌 입력, 1~5 범위 밖 입력을
+            # read_int가 빈 입력, 숫자가 아닌 입력, 1~6 범위 밖 입력을
             # 전부 걸러내고 재입력을 요청하므로 여기서는 별도 검증이 필요 없다.
-            choice = read_int("선택: ", 1, 5)
+            choice = read_int("선택: ", 1, 6)
 
             if choice == 1:
                 game.play()
@@ -21,6 +21,8 @@ def main():
             elif choice == 4:
                 game.show_score()
             elif choice == 5:
+                game.delete_quiz()
+            elif choice == 6:
                 print("종료합니다.")
                 break
     except KeyboardInterrupt:
